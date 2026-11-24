@@ -190,7 +190,7 @@ qa-automation-framework/
 ## Tooling and commands (target)
 `requirements.txt` (pin exact versions when creating it): pytest, pytest-bdd,
 pytest-playwright, pytest-html, python-dotenv. Later: pytest-xdist, pytest-rerunfailures,
-allure-pytest, axe-playwright-python.
+allure-pytest-bdd (never allure-pytest, see Reporting), axe-playwright-python.
 
 Makefile targets to provide:
 ```
@@ -203,11 +203,34 @@ make report         # open reports/report.html
 ```
 
 ## Reporting
-- Base: `pytest-html` → `reports/report.html`; screenshots on UI failure in
-  `reports/screenshots/`.
-- Behave-style console output (feature/scenario/step with PASSED/FAILED) via pytest-bdd hooks
-  in `conftest.py` — nice to have.
-- Later: Allure (`reports/allure-results`).
+Decision (Nov 2026, after research): **two reports, different purposes.**
+- **pytest-html** → `reports/report.html`: quick report that works with Python only (anyone who
+  clones the repo). Keep it as is; do not invest more time in it.
+- **Allure Report 3 + `allure-pytest-bdd`** → the showcase report, published on GitHub Pages
+  with history. **Introduce it in the same branch as the first CI workflow** (history is its
+  main value and needs CI); the UI screenshot hook comes with the first Page Objects PR.
+- Verified (Nov 2026): `allure-pytest-bdd==2.16.2` works with pytest-bdd 9 (steps, Scenario
+  Outline parameters and tags shown; only attachment is the INFO request log, no secrets).
+- **Never install `allure-pytest` too**: it conflicts with `allure-pytest-bdd` (`--alluredir`
+  registered twice).
+- Allure 3 CLI is a Node package (no Java): `package.json` with `allure` pinned via
+  `--save-exact`, installed by `npm ci` in `make install`; `allurerc.mjs` with
+  `historyPath: reports/history.jsonl`. Allure 3.33 needs **Node >= 22.18**: pin Node with an
+  `.nvmrc` (user has nvm; v22.13.1 installed in Nov 2026 must be upgraded, e.g. `nvm install 24`).
+- **No `@allure.*` tags in `.feature` files**: map existing markers (`api`/`ui`/`hybrid`,
+  `@QA-n`) to Allure labels in `conftest.py` (`allure.dynamic`). Gherkin stays tool-agnostic.
+- Environment widget: write only non-secret values (`ENV`, app URL) to
+  `allure-results/environment.properties`.
+- CI: publish **only the remote suite** to Pages (official Pages actions; restore
+  `history.jsonl` from the published site before generating). Local suite reports go as job
+  artifacts. Nightly scheduled remote run so history grows.
+- **Never publish Playwright traces** (they contain network traffic, headers and bodies):
+  artifacts only, short retention. Never attach the login response or raw bodies; use the
+  redacting `describe()` from `core/utils/http_checks.py`.
+- Rejected: ReportPortal (needs its own server with DB + search engine), Allure TestOps (paid),
+  Allure 2 (needs Java, manual history copying).
+- `make clean-reports` wipes `reports/` before `make test-local` / `test-remote`.
+- Behave-style console output via pytest-bdd hooks — nice to have.
 - `reports/` is gitignored.
 
 ## Version control (Git)
@@ -253,6 +276,7 @@ Rules:
 ## Scope
 **Phase 1 (base):** structure, config/env, `mutating` guard, API client, infrastructure +
 login + one validation flow (API and one hybrid), Page Objects with user-chosen locators,
-pytest-html, Makefile, README, GitHub Actions (remote).
-**Phase 2:** xdist, rerunfailures, Allure, accessibility (axe), local job in CI,
+pytest-html, Makefile, README, GitHub Actions (remote) **+ Allure 3 published on GitHub Pages
+(moved from phase 2; same branch as the CI workflow)**.
+**Phase 2:** xdist, rerunfailures, accessibility (axe), local job in CI,
 behave-style output, more validation scenarios (bookings, messages, report).

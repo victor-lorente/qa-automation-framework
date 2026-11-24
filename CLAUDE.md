@@ -75,7 +75,7 @@ Facts verified on the user's local instance (Nov 2026):
 | Env | Target | What may run |
 |-----|--------|--------------|
 | `local` | RBP running in Docker on the user's machine | Everything: API, UI, hybrid, tests that create/modify/delete data |
-| `remote` | https://automationintesting.online | **Read-only only**: page loads, navigation, visible content, failed-login messages, `GET` API calls. Never create entities. |
+| `remote` | https://automationintesting.online | **Read-only only**: page loads, navigation, visible content, admin login (successful and failed; it only opens a session, no business data changes), `GET` API calls. Never create entities. Never log out with a shared token. |
 
 - Tests that create, update or delete data are marked **`@mutating`**.
 - `conftest.py` must **skip `mutating` tests automatically when `ENV=remote`**, with a clear

@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Local configuration (may contain credentials) - commit .env.example instead
+.env
+
+# System under test: cloned and built locally by `make app-up`, never committed
+.sut/
+
+# Generated test output (HTML report, screenshots, traces, Allure results)
+reports/
+test-results/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

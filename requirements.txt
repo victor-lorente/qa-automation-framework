@@ -1,0 +1,14 @@
+# Exact versions (==) so every machine and CI run uses the same toolchain.
+# Verified together with `pip check` on Python 3.13.
+
+# Test runner
+pytest==9.2.0
+# Gherkin / BDD layer on top of pytest
+pytest-bdd==9.0.1
+# Playwright browser + APIRequestContext fixtures for pytest
+pytest-playwright==0.10.0
+playwright==1.65.2
+# HTML report (reports/report.html)
+pytest-html==4.2.0
+# Loads .env into environment variables for core/config.py
+python-dotenv==1.2.4

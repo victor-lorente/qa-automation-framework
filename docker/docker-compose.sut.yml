@@ -1,0 +1,92 @@
+# System under test: Restful Booker Platform (RBP) by Mark Winteringham
+# https://github.com/mwinteringham/restful-booker-platform (GPL-3.0)
+#
+# Deployment configuration only: it references the images that RBP's own CI publishes
+# to Docker Hub. No RBP code lives in this repository.
+#
+# Images are pinned by digest (tags are mutable). These digests are the `latest` tag as
+# published on 2026-10-23, built from RBP commit efe2deb8ce02db541adbf9d3a6604caf5fbdaae6.
+# They are linux/amd64 only: native in CI, emulated (Rosetta) on Apple Silicon.
+
+name: rbp
+
+# Shared readiness settings for the Spring Boot services (generous for emulated amd64).
+x-java-healthcheck: &java-healthcheck
+  interval: 5s
+  timeout: 3s
+  retries: 30
+  start_period: 30s
+
+x-amd64: &amd64
+  platform: linux/amd64
+
+services:
+  # Service names are part of the contract: the assets (front-end) image has the
+  # backend URLs baked in as http://rbp-<service>:<port>.
+
+  rbp-booking:
+    <<: *amd64
+    image: mwinteringham/restfulbookerplatform_booking@sha256:5685714e9dd0a0cb032058f9a8100b3d0bde152c8d8ee2aaa8c55983d62a2249
+    ports: ["3000:3000"]
+    healthcheck:
+      <<: *java-healthcheck
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/booking/actuator/health"]
+
+  rbp-room:
+    <<: *amd64
+    image: mwinteringham/restfulbookerplatform_room@sha256:7b76a45cff47fb10334cdde6a8117ef652ad446688987f9fda4f15b003cc25a7
+    ports: ["3001:3001"]
+    healthcheck:
+      <<: *java-healthcheck
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/room/actuator/health"]
+
+  rbp-branding:
+    <<: *amd64
+    image: mwinteringham/restfulbookerplatform_branding@sha256:28bbcafa529e037bd0190805d9badde651a3168da3c2c039e08a0df09340c32e
+    ports: ["3002:3002"]
+    healthcheck:
+      <<: *java-healthcheck
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3002/branding/actuator/health"]
+
+  rbp-auth:
+    <<: *amd64
+    image: mwinteringham/restfulbookerplatform_auth@sha256:2ddfbb1fc056cea32f209be7a6b59f69e05bcbba2c094ab79eabeab94db77f1a
+    ports: ["3004:3004"]
+    healthcheck:
+      <<: *java-healthcheck
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3004/auth/actuator/health"]
+
+  rbp-report:
+    <<: *amd64
+    image: mwinteringham/restfulbookerplatform_report@sha256:2e86c3971c5451942916165dfb1d918b67c98551203f2f47aabd891f113bc5d6
+    ports: ["3005:3005"]
+    healthcheck:
+      <<: *java-healthcheck
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3005/report/actuator/health"]
+
+  rbp-message:
+    <<: *amd64
+    image: mwinteringham/restfulbookerplatform_message@sha256:cfec7189140a7820f30aeefb04a0e5124a8f796abef3813a370190aeae6aae4f
+    ports: ["3006:3006"]
+    healthcheck:
+      <<: *java-healthcheck
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3006/message/actuator/health"]
+
+  rbp-assets:
+    <<: *amd64
+    image: mwinteringham/restfulbookerplatform_assets@sha256:460fc9a2f0846c09c400fbe231f56031b709903ee67298cb6d6455cb2fdc27be
+    ports: ["80:80"]
+    depends_on:
+      rbp-booking: { condition: service_healthy }
+      rbp-room: { condition: service_healthy }
+      rbp-branding: { condition: service_healthy }
+      rbp-auth: { condition: service_healthy }
+      rbp-report: { condition: service_healthy }
+      rbp-message: { condition: service_healthy }
+    healthcheck:
+      # Node 24 image: no curl/wget needed. Next.js listens on IPv4 only (HOSTNAME=0.0.0.0).
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s

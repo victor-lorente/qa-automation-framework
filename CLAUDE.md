@@ -67,8 +67,7 @@ Facts verified on the user's local instance (Nov 2026):
   | report   | 3005 | http://localhost:3005/report/actuator/health |
   | message  | 3006 | http://localhost:3006/message/actuator/health |
 
-  Verified `{"status":"UP"}` for auth and room; the rest follow the same pattern
-  (confirm before relying on them).
+  All six verified `{"status":"UP"}` (Nov 2026, RBP commit `efe2deb8ce02db541adbf9d3a6604caf5fbdaae6`).
 - Admin credentials: `admin` / `password`.
 - Public deployment: **https://automationintesting.online** (shared with other users).
 
@@ -85,24 +84,35 @@ Facts verified on the user's local instance (Nov 2026):
   In `remote`, availability is checked with read-only `GET` calls (`/api/room`, `/api/branding`).
 
 ## Running the SUT locally (Docker)
-Requirements: Docker Desktop. Java/Maven are NOT installed on the host; the JARs are built
-inside a Maven container.
+Decision (Nov 2026, after research): **use the images RBP's own CI publishes to Docker Hub**
+("build once, promote"), not a local build. Requirements: any Docker Engine with Compose v2
+(Docker Desktop, OrbStack, Colima). Java/Maven are NOT installed on the host.
 
 ```bash
-git clone https://github.com/mwinteringham/restful-booker-platform.git .sut/restful-booker-platform
-cd .sut/restful-booker-platform
-docker run --rm -v "$PWD":/app -v "$HOME/.m2":/root/.m2 -w /app \
-  maven:3.9-eclipse-temurin-26-alpine \
-  mvn -q clean package -DskipTests -pl auth,booking,room,branding,report,message -am
-docker compose up -d --build
+make app-up     # docker compose -f docker/docker-compose.sut.yml pull + up -d --wait
+make app-down
+make app-logs   # container status + logs into reports/ (CI on failure)
 ```
-- `docker-compose.yml` uses `build:` with Dockerfiles that `COPY target/*-exec.jar`, so the
-  Maven step is mandatory before `docker compose up`.
-- Pin the SUT to a specific commit (record it in the Makefile/README) so the framework does
-  not break when upstream changes.
-- Keep `.sut/` in `.gitignore`. **Never copy RBP code into this repository.**
-- Gotchas seen: the build needs several GB of free disk (Docker crashed once on a full disk);
-  Java services take a few seconds to become healthy after `up`.
+- `docker/docker-compose.sut.yml` is **our own deployment config** (images, ports,
+  healthchecks); it contains no RBP code. Project name `rbp`.
+- Images (`mwinteringham/restfulbookerplatform_<svc>`) are **pinned by digest**, never by tag:
+  `latest` moves with every push to RBP trunk and version tags are rare. Current digests =
+  `latest` published 2026-10-23 from RBP commit `efe2deb8ce02db541adbf9d3a6604caf5fbdaae6`.
+  Update them deliberately (`docker buildx imagetools inspect <image>:latest`) in a PR.
+- Images are **linux/amd64 only** (`platform: linux/amd64` in compose): native in CI,
+  emulated with Rosetta on the user's Apple Silicon Mac. Works fine (cold `make app-up` ≈ 64 s).
+- **Service names `rbp-<svc>` are a contract**: the assets image has backend URLs baked in
+  (`http://rbp-booking:3000`, …). Do not rename them.
+- Readiness: healthchecks on each actuator (`wget` in the Temurin Alpine images, `node -e fetch`
+  in the Node assets image, `127.0.0.1` because Next.js listens on IPv4 only),
+  `depends_on: service_healthy` and `up --wait --wait-timeout 300`. No sleeps.
+- Testcontainers was considered and rejected: the environment lifecycle stays outside pytest
+  (remote suite does not need it; local runs reuse one running environment).
+- **Fallback (documented in README):** build from source at the pinned commit in `.sut/`
+  (gitignored) with Maven in a container + RBP's own `docker compose up --build`. Use only if the
+  images disappear or native arm64 is needed. Needs several GB of disk.
+- RBP is GPL-3.0: reference its images, never copy its code; credit it in the README.
+- Disk is tight on the user's Mac (~7 GB free, Nov 2026); avoid steps that need several GB.
 
 ## Architecture
 Layers (each layer only depends on the ones below it):
@@ -185,7 +195,7 @@ allure-pytest, axe-playwright-python.
 Makefile targets to provide:
 ```
 make install        # python -m venv .venv, pip install -r requirements.txt, playwright install --with-deps chromium
-make app-up         # clone RBP at pinned commit into .sut/, build JARs in Maven container, docker compose up -d --build
+make app-up         # pull pinned RBP images, docker compose up -d --wait (see "Running the SUT locally")
 make app-down       # docker compose down
 make test-local     # ENV=local, full suite
 make test-remote    # ENV=remote, read-only suite (mutating skipped)

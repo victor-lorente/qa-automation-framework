@@ -28,7 +28,7 @@ DEFAULT_URLS: dict[str, str] = {
 }
 
 # Direct service ports: only reachable when the SUT runs locally in Docker.
-# Verified UP: auth, room. The others follow the same /<service>/actuator/health pattern.
+# All six verified {"status":"UP"} against RBP commit efe2deb (Nov 2026).
 LOCAL_HEALTH_URLS: dict[str, str] = {
     "booking": "http://localhost:3000/booking/actuator/health",
     "room": "http://localhost:3001/room/actuator/health",

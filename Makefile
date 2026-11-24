@@ -6,7 +6,7 @@ VENV    := .venv
 BIN     := $(VENV)/bin
 COMPOSE := docker compose -f docker/docker-compose.sut.yml
 
-.PHONY: help install app-up app-down app-logs test-local test-remote report
+.PHONY: help install app-up app-down app-logs clean-reports test-local test-remote report
 
 help:  ## List available targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -29,10 +29,13 @@ app-logs:  ## Save container status and logs to reports/ (used by CI on failure)
 	$(COMPOSE) ps -a > reports/sut-ps.txt
 	$(COMPOSE) logs --no-color --timestamps > reports/sut-logs.txt
 
-test-local:  ## Full suite against the local Docker SUT
+clean-reports:  ## Delete previous reports, so each run's output is self-contained
+	rm -rf reports
+
+test-local: clean-reports  ## Full suite against the local Docker SUT
 	$(BIN)/pytest --env local
 
-test-remote:  ## Read-only suite against the public site (mutating tests are skipped)
+test-remote: clean-reports  ## Read-only suite against the public site (mutating tests are skipped)
 	$(BIN)/pytest --env remote
 
 report:  ## Open the last HTML report in the default browser

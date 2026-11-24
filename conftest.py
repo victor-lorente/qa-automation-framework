@@ -71,16 +71,24 @@ def pytest_report_header(config: pytest.Config) -> str:
     return f"environment: {settings.env} | app url: {settings.app_url}"
 
 
+# Markers whose tests must never run against the public site, with the skip reason.
+REMOTE_SKIPS: dict[str, str] = {
+    # Safety guard: never write to the shared public deployment.
+    "mutating": "mutating test: not run against the public site (ENV=remote)",
+    # Capability guard: direct service ports only exist in the local Docker SUT.
+    "local_only": "local-only test: needs the local Docker SUT (ENV=remote)",
+}
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Safety guard: never write to the shared public deployment."""
+    """Skip, with a clear reason, every test that must not run in the current environment."""
     if config.stash[SETTINGS_KEY].env != "remote":
         return
-    skip_mutating = pytest.mark.skip(
-        reason="mutating test: not run against the public site (ENV=remote)"
-    )
     for item in items:
-        if item.get_closest_marker("mutating"):
-            item.add_marker(skip_mutating)
+        for marker_name, reason in REMOTE_SKIPS.items():
+            if item.get_closest_marker(marker_name):
+                item.add_marker(pytest.mark.skip(reason=reason))
+                break
 
 
 @pytest.fixture(scope="session")

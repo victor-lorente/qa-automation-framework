@@ -80,7 +80,7 @@ Facts verified on the user's local instance (Nov 2026):
 - Tests that create, update or delete data are marked **`@mutating`**.
 - `conftest.py` must **skip `mutating` tests automatically when `ENV=remote`**, with a clear
   skip reason. This guard is a key design point: production is never written to by accident.
-- `infrastructure` health checks (direct service ports) run only in `local`.
+- `infrastructure` health checks (direct service ports) run only in `local` (tagged `@local_only`).
   In `remote`, availability is checked with read-only `GET` calls (`/api/room`, `/api/branding`).
 
 ## Running the SUT locally (Docker)
@@ -160,7 +160,9 @@ qa-automation-framework/
 **Markers** (declare in `pytest.ini`)
 - Layer: `api`, `ui`, `hybrid`
 - Suite: `infrastructure`, `login`, `validation`
-- Environment safety: `mutating` (skipped in remote)
+- Environment safety: `mutating` (skipped in remote), `local_only` (needs the local Docker
+  SUT, e.g. direct service ports; skipped in remote). Both handled by `REMOTE_SKIPS` in the
+  root `conftest.py`. Never make a test pass silently in remote (no `if env` in steps).
 - Optional: `smoke`, `accessibility`
 - Combine with `-m`, e.g. `-m "api and not mutating"`.
 

@@ -112,6 +112,7 @@ Every Gherkin tag is a pytest marker, and `--strict-markers` rejects unknown tag
 | `api`, `ui`, `hybrid` | Layer under test |
 | `infrastructure`, `login`, `validation` | Suite |
 | `mutating` | Writes data; skipped when `ENV=remote` |
+| `local_only` | Needs the local Docker instance (e.g. per-service health ports); skipped when `ENV=remote` |
 | `smoke`, `accessibility` | Optional subsets |
 
 ## Project structure

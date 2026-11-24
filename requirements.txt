@@ -10,5 +10,8 @@ pytest-playwright==0.10.0
 playwright==1.65.2
 # HTML report (reports/report.html)
 pytest-html==4.2.0
-# Loads .env into environment variables for core/config.py
+# Typed, validated configuration (core/config.py): env vars > .env > defaults
+pydantic==2.14.4
+pydantic-settings==2.16.3
+# .env file support used by pydantic-settings
 python-dotenv==1.2.4

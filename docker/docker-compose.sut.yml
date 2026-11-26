@@ -5,7 +5,7 @@
 # to Docker Hub. No RBP code lives in this repository.
 #
 # Images are pinned by digest (tags are mutable). These digests are the `latest` tag as
-# published on 2026-10-23, built from RBP commit efe2deb8ce02db541adbf9d3a6604caf5fbdaae6.
+# published on 2026-11-26, built from RBP commit 2069ba1c ("routing-improvements").
 # They are linux/amd64 only: native in CI, emulated (Rosetta) on Apple Silicon.
 
 name: rbp
@@ -26,7 +26,7 @@ services:
 
   rbp-booking:
     <<: *amd64
-    image: mwinteringham/restfulbookerplatform_booking@sha256:5685714e9dd0a0cb032058f9a8100b3d0bde152c8d8ee2aaa8c55983d62a2249
+    image: mwinteringham/restfulbookerplatform_booking@sha256:d77762ef5d592a191dd74df792d0c51ad9a3899ebf6afe0eac5d19ed2108f0a2
     ports: ["3000:3000"]
     healthcheck:
       <<: *java-healthcheck
@@ -34,7 +34,7 @@ services:
 
   rbp-room:
     <<: *amd64
-    image: mwinteringham/restfulbookerplatform_room@sha256:7b76a45cff47fb10334cdde6a8117ef652ad446688987f9fda4f15b003cc25a7
+    image: mwinteringham/restfulbookerplatform_room@sha256:6bf7f8ada7ee991f43911dd0a0f8eb217a262369599cd64316a49975d4a80a08
     ports: ["3001:3001"]
     healthcheck:
       <<: *java-healthcheck
@@ -42,7 +42,7 @@ services:
 
   rbp-branding:
     <<: *amd64
-    image: mwinteringham/restfulbookerplatform_branding@sha256:28bbcafa529e037bd0190805d9badde651a3168da3c2c039e08a0df09340c32e
+    image: mwinteringham/restfulbookerplatform_branding@sha256:ef4ded3aa8f75cc3473481090e0097f425c9924b6820859d4a00c0d45ef91f67
     ports: ["3002:3002"]
     healthcheck:
       <<: *java-healthcheck
@@ -50,7 +50,7 @@ services:
 
   rbp-auth:
     <<: *amd64
-    image: mwinteringham/restfulbookerplatform_auth@sha256:2ddfbb1fc056cea32f209be7a6b59f69e05bcbba2c094ab79eabeab94db77f1a
+    image: mwinteringham/restfulbookerplatform_auth@sha256:45a0931209a101c35da9af777d87bdf2a57115a82e033fa024889086a24dc058
     ports: ["3004:3004"]
     healthcheck:
       <<: *java-healthcheck
@@ -58,7 +58,7 @@ services:
 
   rbp-report:
     <<: *amd64
-    image: mwinteringham/restfulbookerplatform_report@sha256:2e86c3971c5451942916165dfb1d918b67c98551203f2f47aabd891f113bc5d6
+    image: mwinteringham/restfulbookerplatform_report@sha256:0c54160a5d2ef8957629d884b438f57bf60f7df49a41be2a2b789a280022e645
     ports: ["3005:3005"]
     healthcheck:
       <<: *java-healthcheck
@@ -66,7 +66,7 @@ services:
 
   rbp-message:
     <<: *amd64
-    image: mwinteringham/restfulbookerplatform_message@sha256:cfec7189140a7820f30aeefb04a0e5124a8f796abef3813a370190aeae6aae4f
+    image: mwinteringham/restfulbookerplatform_message@sha256:57d16211a91c6c63bca970eb52aa65c5c46d77591e16abb0ec5aaaa110090fea
     ports: ["3006:3006"]
     healthcheck:
       <<: *java-healthcheck
@@ -74,8 +74,8 @@ services:
 
   rbp-assets:
     <<: *amd64
-    image: mwinteringham/restfulbookerplatform_assets@sha256:460fc9a2f0846c09c400fbe231f56031b709903ee67298cb6d6455cb2fdc27be
-    ports: ["80:80"]
+    image: mwinteringham/restfulbookerplatform_assets@sha256:e9eae7a072982db077f83237268599c72d9e732ec67125be095345d90487965b
+    ports: ["80:3003"]  # the front end listens on 3003 inside the container
     depends_on:
       rbp-booking: { condition: service_healthy }
       rbp-room: { condition: service_healthy }
@@ -85,7 +85,7 @@ services:
       rbp-message: { condition: service_healthy }
     healthcheck:
       # Node 24 image: no curl/wget needed. Next.js listens on IPv4 only (HOSTNAME=0.0.0.0).
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 5s
       timeout: 3s
       retries: 30

@@ -4,7 +4,7 @@ Feature: Platform health
   I want to know the platform is up before testing its behaviour
   So that failures point to real defects, not to a broken environment
 
-  @local_only @QA-3
+  @QA-3
   Scenario Outline: The <service> service reports it is healthy
     When the health of the "<service>" service is checked
     Then the service reports it is up

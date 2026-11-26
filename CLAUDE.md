@@ -44,32 +44,33 @@ Do not offer this for minor or obvious choices.
 https://github.com/mwinteringham/restful-booker-platform — a fake B&B site
 ("Shady Meadows B&B") made of Spring Boot services plus a Next.js front end.
 
-Facts verified on the user's local instance (Nov 2026):
-- Front end (Next.js, service `rbp-assets`) served on **http://localhost** (port 80).
-- The front end exposes the API under **`/api/...`** through explicit Next.js route handlers
-  (not a generic proxy). Known routes: `/api/auth/login`, `/api/auth/validate`,
-  `/api/auth/logout`, `/api/room`, `/api/room/{id}`, `/api/booking`, `/api/booking/{id}`,
-  `/api/booking/summary`, `/api/branding`, `/api/message`, `/api/message/{id}`,
-  `/api/message/{id}/read`, `/api/message/count`, `/api/report`, `/api/report/room/{roomid}`.
-- `GET /api/room` → 200 with `{"rooms": [...]}`.
-- `POST /api/auth/login` with `{"username": "admin", "password": "password"}` → 200 with
-  `{"token": "<value>"}`. Protected routes (e.g. `POST /api/room`) read the token from a
-  **cookie named `token`** (`Cookie: token=<value>`), not from an Authorization header.
-- **Health checks are NOT available through `/api`** (`/api/<svc>/actuator/health` → 500).
-  They only exist directly on each service port, under the service context path:
-
-  | Service  | Port | Health URL |
-  |----------|------|------------|
-  | booking  | 3000 | http://localhost:3000/booking/actuator/health |
-  | room     | 3001 | http://localhost:3001/room/actuator/health |
-  | branding | 3002 | http://localhost:3002/branding/actuator/health |
-  | auth     | 3004 | http://localhost:3004/auth/actuator/health |
-  | report   | 3005 | http://localhost:3005/report/actuator/health |
-  | message  | 3006 | http://localhost:3006/message/actuator/health |
-
-  All six verified `{"status":"UP"}` (Nov 2026, RBP commit `efe2deb8ce02db541adbf9d3a6604caf5fbdaae6`).
+Facts verified locally AND on the public site (26 Nov 2026, RBP commit `2069ba1c`,
+"routing-improvements"; local and remote run the same version):
+- Front end (Next.js, service `rbp-assets`) served on **http://localhost** (container port 3003
+  mapped to host port 80).
+- **`/api/<service>/...` is a generic proxy to the Spring Boot services' own REST API**
+  (`booking`, `room`, `branding`, `auth`, `report`, `message`). The front end's internal
+  handlers live under `/ui-api/...`: never test those, they are the UI's backend-for-frontend.
+- Auth:
+  - `POST /api/auth/login` `{"username","password"}` → **200, empty body,
+    `Set-Cookie: token=<value>; Path=/`** (no HttpOnly). Invalid/unknown/empty credentials →
+    **403, empty body**. No body → 400.
+  - Protected routes read the **cookie `token`**. No session or invalid token → **403**.
+  - `POST /api/auth/validate` `{"token"}` (JSON body, not cookie) → 200 empty / 403.
+  - `POST /api/auth/logout` **invalidates the token** → never log out with the shared session.
+- Rooms: `GET /api/room` → `{"rooms": [...]}`; `GET /api/room/{id}` → the room;
+  `POST /api/room` → **201 with the full room, including `roomid`**; validation errors →
+  400 `{"error":"BAD_REQUEST","errorCode":400,"fieldErrors":[...]}`; `DELETE /api/room/{id}` → 202.
+  Room names may repeat. Price must be 1..999; type one of Single/Double/Twin/Family/Suite.
+- Known bug (current version): `GET /api/room/{id}` of a deleted room → 500 instead of 404.
+- Health: `/api/<service>/actuator/health` → `{"status":"UP",...}` for all six services, in
+  both environments (also directly on ports 3000–3006 locally, no longer needed).
+- History: up to `efe2deb` (Oct 2026), `/api` were front-end handlers with a different
+  contract (token in the login body, 401s) and `/api/<svc>/{id}` routes returned 500.
 - Admin credentials: `admin` / `password`.
-- Public deployment: **https://automationintesting.online** (shared with other users).
+- Public deployment: **https://automationintesting.online** (shared with other users). It
+  follows RBP trunk, so it can change without notice: when remote tests break unexpectedly,
+  compare with the latest RBP commit and Docker Hub images first.
 
 ## Environments
 | Env | Target | What may run |
@@ -80,8 +81,8 @@ Facts verified on the user's local instance (Nov 2026):
 - Tests that create, update or delete data are marked **`@mutating`**.
 - `conftest.py` must **skip `mutating` tests automatically when `ENV=remote`**, with a clear
   skip reason. This guard is a key design point: production is never written to by accident.
-- `infrastructure` health checks (direct service ports) run only in `local` (tagged `@local_only`).
-  In `remote`, availability is checked with read-only `GET` calls (`/api/room`, `/api/branding`).
+- `infrastructure` health checks go through `/api/<service>/actuator/health` and run in both
+  environments (read-only), plus public `GET` checks (`/api/room`, `/api/branding`).
 
 ## Running the SUT locally (Docker)
 Decision (Nov 2026, after research): **use the images RBP's own CI publishes to Docker Hub**
@@ -97,8 +98,9 @@ make app-logs   # container status + logs into reports/ (CI on failure)
   healthchecks); it contains no RBP code. Project name `rbp`.
 - Images (`mwinteringham/restfulbookerplatform_<svc>`) are **pinned by digest**, never by tag:
   `latest` moves with every push to RBP trunk and version tags are rare. Current digests =
-  `latest` published 2026-10-23 from RBP commit `efe2deb8ce02db541adbf9d3a6604caf5fbdaae6`.
-  Update them deliberately (`docker buildx imagetools inspect <image>:latest`) in a PR.
+  `latest` published 2026-11-26 from RBP commit `2069ba1c622c7327395d329eccdbe4e8ea90349f`
+  (previous pin: `efe2deb`, Oct 2026). Update them deliberately
+  (`docker buildx imagetools inspect <image>:latest`) in a PR, re-verifying the API contract.
 - Images are **linux/amd64 only** (`platform: linux/amd64` in compose): native in CI,
   emulated with Rosetta on the user's Apple Silicon Mac. Works fine (cold `make app-up` ≈ 64 s).
 - **Service names `rbp-<svc>` are a contract**: the assets image has backend URLs baked in
@@ -161,7 +163,7 @@ qa-automation-framework/
 - Layer: `api`, `ui`, `hybrid`
 - Suite: `infrastructure`, `login`, `validation`
 - Environment safety: `mutating` (skipped in remote), `local_only` (needs the local Docker
-  SUT, e.g. direct service ports; skipped in remote). Both handled by `REMOTE_SKIPS` in the
+  SUT; skipped in remote; currently unused, kept for Docker-dependent checks). Both handled by `REMOTE_SKIPS` in the
   root `conftest.py`. Never make a test pass silently in remote (no `if env` in steps).
 - Optional: `smoke`, `accessibility`
 - Combine with `-m`, e.g. `-m "api and not mutating"`.

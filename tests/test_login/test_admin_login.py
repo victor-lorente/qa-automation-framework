@@ -1,7 +1,7 @@
 from playwright.sync_api import APIRequestContext, APIResponse
 from pytest_bdd import parsers, scenarios, then, when
 
-from core.api_clients.auth_client import AuthClient
+from core.api_clients.auth_client import AuthClient, session_token
 from core.config import Settings
 from core.utils.http_checks import expect_status
 
@@ -26,21 +26,17 @@ def someone_logs_in(anon_api: APIRequestContext, username: str, password: str) -
 @then("the login is accepted")
 def login_accepted(login_response: APIResponse) -> None:
     expect_status(login_response, 200)
-    token = login_response.json().get("token")
     # Never print the token itself.
-    assert isinstance(token, str) and token, "Login response has no non-empty 'token'"
+    assert session_token(login_response), "Login response did not set a 'token' session cookie"
 
 
 @then("the session token is valid")
 def token_is_valid(login_response: APIResponse, anon_api: APIRequestContext) -> None:
-    response = AuthClient(anon_api).validate(login_response.json()["token"])
+    response = AuthClient(anon_api).validate(session_token(login_response) or "")
     expect_status(response, 200)
-    assert response.json() == {"valid": True}, f"Unexpected validate body: {response.json()}"
 
 
 @then("the login is rejected as invalid credentials")
 def login_rejected(login_response: APIResponse) -> None:
-    expect_status(login_response, 401)
-    assert login_response.json() == {"error": "Invalid credentials"}, (
-        f"Unexpected error body: {login_response.json()}"
-    )
+    expect_status(login_response, 403)
+    assert session_token(login_response) is None, "A rejected login must not open a session"

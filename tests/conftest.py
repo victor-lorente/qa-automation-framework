@@ -5,7 +5,6 @@ API clients; the root conftest.py only handles configuration and safety guards.
 """
 
 from collections.abc import Iterator
-from urllib.parse import urlsplit
 
 import pytest
 from playwright.sync_api import APIRequestContext, Playwright, StorageState
@@ -27,50 +26,30 @@ def anon_api(playwright: Playwright, settings: Settings) -> Iterator[APIRequestC
 
 
 @pytest.fixture(scope="session")
-def admin_token(playwright: Playwright, settings: Settings) -> str:
-    """Log in once per session (= once per pytest-xdist worker)."""
+def admin_storage_state(playwright: Playwright, settings: Settings) -> StorageState:
+    """Log in once per session (= once per pytest-xdist worker) and keep the session cookie.
+
+    RBP sets the session as a cookie (`token`) on login, so the context stores it exactly
+    as the server sent it. The resulting storage state is reusable by API contexts and,
+    later, by the browser.
+    """
     context = playwright.request.new_context(base_url=settings.app_url)
     try:
         response = AuthClient(context).login(
             settings.admin_user, settings.admin_password.get_secret_value()
         )
         require_status(response, 200, action="Admin login (session setup)")
-        return response.json()["token"]
+        return context.storage_state()
     finally:
         context.dispose()
-
-
-@pytest.fixture(scope="session")
-def admin_storage_state(admin_token: str, settings: Settings) -> StorageState:
-    """The admin session as a cookie, reusable by API contexts and (later) the browser.
-
-    RBP returns the token in the login body only; protected routes read a cookie `token`.
-    """
-    url = urlsplit(settings.app_url)
-    # TODO: align httpOnly/sameSite with the cookie the browser gets after a real UI
-    # login (inspect context.cookies() once the UI layer exists).
-    return {
-        "cookies": [
-            {
-                "name": "token",
-                "value": admin_token,
-                "domain": url.hostname or "",
-                "path": "/",
-                "expires": -1,
-                "httpOnly": False,
-                "secure": url.scheme == "https",
-                "sameSite": "Lax",
-            }
-        ],
-        "origins": [],
-    }
 
 
 @pytest.fixture(scope="session")
 def admin_api(
     playwright: Playwright, settings: Settings, admin_storage_state: StorageState
 ) -> Iterator[APIRequestContext]:
-    """Shared authenticated context for setup and verification. Never log out with it."""
+    """Shared authenticated context for setup and verification. Never log out with it:
+    logout invalidates the token for every test in the session."""
     context = playwright.request.new_context(
         base_url=settings.app_url, storage_state=admin_storage_state
     )

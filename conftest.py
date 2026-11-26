@@ -80,15 +80,35 @@ REMOTE_SKIPS: dict[str, str] = {
 }
 
 
+KNOWN_BUG_PREFIX = "bug_"
+
+
+def _known_bugs(config: pytest.Config) -> dict[str, str]:
+    """{marker name: description} for every registered "bug_*" marker in pytest.ini."""
+    bugs = {}
+    for line in config.getini("markers"):
+        name, _, description = line.partition(":")
+        if name.strip().startswith(KNOWN_BUG_PREFIX):
+            bugs[name.strip()] = description.strip()
+    return bugs
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Skip, with a clear reason, every test that must not run in the current environment."""
-    if config.stash[SETTINGS_KEY].env != "remote":
-        return
+    """Apply environment skips and known-bug expectations to the collected tests."""
+    known_bugs = _known_bugs(config)
+    is_remote = config.stash[SETTINGS_KEY].env == "remote"
     for item in items:
-        for marker_name, reason in REMOTE_SKIPS.items():
-            if item.get_closest_marker(marker_name):
-                item.add_marker(pytest.mark.skip(reason=reason))
-                break
+        # Known SUT bugs: expected to fail; strict, so a fixed bug (XPASS) fails the run
+        # and forces removing the tag instead of leaving a stale expectation.
+        for bug, description in known_bugs.items():
+            if item.get_closest_marker(bug):
+                item.add_marker(pytest.mark.xfail(reason=description, strict=True))
+        # Environment guards: skip, with a clear reason, what must not run in remote.
+        if is_remote:
+            for marker_name, reason in REMOTE_SKIPS.items():
+                if item.get_closest_marker(marker_name):
+                    item.add_marker(pytest.mark.skip(reason=reason))
+                    break
 
 
 @pytest.fixture(scope="session")

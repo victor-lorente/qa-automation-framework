@@ -10,6 +10,7 @@ import pytest
 from playwright.sync_api import APIRequestContext, Playwright, StorageState
 
 from core.api_clients.auth_client import AuthClient
+from core.api_clients.room_client import RoomClient
 from core.config import Settings
 from core.utils.http_checks import require_status
 
@@ -55,3 +56,25 @@ def admin_api(
     )
     yield context
     context.dispose()
+
+
+@pytest.fixture
+def room_cleanup(admin_api: APIRequestContext) -> Iterator[list[str]]:
+    """Register room names BEFORE creating them; they are deleted after the test, even if it fails.
+
+    Registering first also catches rooms created by mistake (e.g. a validation regression
+    in a negative test), whose id the test never saw. Rooms are found by name, so names
+    must be unique (RBP accepts duplicates).
+    """
+    names: list[str] = []
+    yield names
+    if not names:
+        return
+    rooms = RoomClient(admin_api)
+    listing = rooms.list_rooms()
+    require_status(listing, 200, action="Room cleanup: list rooms")
+    for room in listing.json()["rooms"]:
+        if room["roomName"] in names:
+            require_status(
+                rooms.delete_room(room["roomid"]), 202, action=f"Room cleanup: delete {room['roomName']}"
+            )

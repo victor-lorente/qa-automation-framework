@@ -165,6 +165,10 @@ qa-automation-framework/
 - Environment safety: `mutating` (skipped in remote), `local_only` (needs the local Docker
   SUT; skipped in remote; currently unused, kept for Docker-dependent checks). Both handled by `REMOTE_SKIPS` in the
   root `conftest.py`. Never make a test pass silently in remote (no `if env` in steps).
+- Known SUT bugs: one marker per bug, `bug_<short_name>`, registered in `pytest.ini` with its
+  description. The root `conftest.py` turns them into `xfail(strict=True)` with that reason;
+  a fixed bug XPASSes and fails the run, forcing the tag's removal. Always check an xfail fails
+  for the right reason (`pytest --runxfail -m QA-n`).
 - Optional: `smoke`, `accessibility`
 - Combine with `-m`, e.g. `-m "api and not mutating"`.
 

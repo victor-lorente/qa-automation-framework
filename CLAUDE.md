@@ -114,7 +114,7 @@ make app-logs   # container status + logs into reports/ (CI on failure)
   (gitignored) with Maven in a container + RBP's own `docker compose up --build`. Use only if the
   images disappear or native arm64 is needed. Needs several GB of disk.
 - RBP is GPL-3.0: reference its images, never copy its code; credit it in the README.
-- Disk is tight on the user's Mac (~7 GB free, Nov 2026); avoid steps that need several GB.
+- Disk on the user's Mac: ~21 GB free (late Nov 2026, was ~7 GB); still avoid needless multi-GB steps.
 
 ## Architecture
 Layers (each layer only depends on the ones below it):
@@ -180,6 +180,23 @@ qa-automation-framework/
   **No `time.sleep` / fixed waits.**
 - Page Object methods express user intent (`login_as(user, pwd)`), not generic clicks.
 - No `if`/`try` in tests to hide failures; assert the expected state.
+- Structure (decision Nov 2026, after research): **pages by URL composed of components**.
+  `core/page_objects/{base_page.py, components/, public/, admin/}`. `BasePage` is minimal
+  (`page`, `PATH`, `open()`), no click/fill wrappers. Components take a root `Locator` and
+  search inside it (e.g. `AdminNav.on(page)`), shared by composition, not inheritance.
+  Page Objects expose actions and read-only locators; `expect` lives in the Then steps.
+  Methods return `None` (no fluent navigation: state travels through pytest fixtures).
+  Function-scoped page fixtures wrap pytest-playwright's `page`. Only create classes that a
+  scenario uses (YAGNI). Rejected: one "general" page object, one class per URL only,
+  Screenplay/App Actions.
+- UI tests that are not about login reuse the API admin session in the browser via the
+  `admin_signed_in` fixture (`context.add_cookies(admin_storage_state["cookies"])`).
+- **Validate every oracle with its negative case.** RBP shows the "Logout" button on the
+  login page to signed-out visitors, so "Logout visible" gave a false positive; the signed-in
+  signal is the admin "Rooms" nav link + URL `/admin/rooms`.
+- RBP UI facts: the public home shows only the **first 3 rooms** (`rooms.slice(0, 3)`), so a
+  room created in a test never appears there; admin room rows have no accessible roles, so
+  they use `data-testid="roomlisting"` + `filter(has_text=name)`.
 
 **API**
 - Use Playwright `APIRequestContext` (`playwright.request.new_context(base_url=...)`),

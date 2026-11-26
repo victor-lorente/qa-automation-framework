@@ -119,13 +119,19 @@ Every Gherkin tag is a pytest marker, and `--strict-markers` rejects unknown tag
 ## Project structure
 
 ```
-├── conftest.py               # env selection, settings fixtures, mutating guard
+├── conftest.py               # env selection, settings, remote guards, known-bug xfails
 ├── core/
-│   └── config.py             # typed settings (pydantic-settings)
+│   ├── config.py             # typed settings (pydantic-settings)
+│   ├── api_clients/          # one client per service, on Playwright APIRequestContext
+│   ├── page_objects/         # pages by URL, composed of reusable components
+│   │   ├── base_page.py
+│   │   ├── components/       # e.g. the admin navigation bar
+│   │   └── admin/            # login, rooms
+│   └── utils/                # secret-safe HTTP checks, test data builders
 ├── docker/
 │   └── docker-compose.sut.yml  # local test environment (pinned RBP images)
-├── features/                 # Gherkin features (coming next)
-├── tests/                    # step definitions (coming next)
+├── features/                 # Gherkin: infrastructure, login, validation
+├── tests/                    # step definitions + shared fixtures (API, session, pages)
 ├── Makefile
 ├── pytest.ini
 └── requirements.txt

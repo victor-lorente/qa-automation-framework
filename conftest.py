@@ -75,7 +75,7 @@ def pytest_report_header(config: pytest.Config) -> str:
 REMOTE_SKIPS: dict[str, str] = {
     # Safety guard: never write to the shared public deployment.
     "mutating": "mutating test: not run against the public site (ENV=remote)",
-    # Capability guard: direct service ports only exist in the local Docker SUT.
+    # Capability guard: some checks need the local Docker SUT (e.g. container internals).
     "local_only": "local-only test: needs the local Docker SUT (ENV=remote)",
 }
 

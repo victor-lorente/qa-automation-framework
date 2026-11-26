@@ -4,15 +4,14 @@ from pytest_bdd import parsers, scenarios, then, when
 from core.api_clients.branding_client import BrandingClient
 from core.api_clients.health_client import HealthClient
 from core.api_clients.room_client import RoomClient
-from core.config import Settings
 from core.utils.http_checks import expect_status
 
 scenarios("infrastructure/platform_health.feature")
 
 
 @when(parsers.parse('the health of the "{service}" service is checked'), target_fixture="response")
-def check_service_health(anon_api: APIRequestContext, settings: Settings, service: str) -> APIResponse:
-    return HealthClient(anon_api).check(settings.health_urls[service])
+def check_service_health(anon_api: APIRequestContext, service: str) -> APIResponse:
+    return HealthClient(anon_api).check(service)
 
 
 @when("a visitor requests the list of rooms", target_fixture="response")

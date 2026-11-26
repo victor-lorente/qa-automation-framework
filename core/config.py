@@ -27,17 +27,6 @@ DEFAULT_URLS: dict[str, str] = {
     "remote": "https://automationintesting.online",
 }
 
-# Direct service ports: only reachable when the SUT runs locally in Docker.
-# All six verified {"status":"UP"} against RBP commit efe2deb (Nov 2026).
-LOCAL_HEALTH_URLS: dict[str, str] = {
-    "booking": "http://localhost:3000/booking/actuator/health",
-    "room": "http://localhost:3001/room/actuator/health",
-    "branding": "http://localhost:3002/branding/actuator/health",
-    "auth": "http://localhost:3004/auth/actuator/health",
-    "report": "http://localhost:3005/report/actuator/health",
-    "message": "http://localhost:3006/message/actuator/health",
-}
-
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -57,11 +46,6 @@ class Settings(BaseSettings):
     def app_url(self) -> str:
         """Front-end URL without trailing slash; the API lives under f"{app_url}/api"."""
         return str(self.base_url or DEFAULT_URLS[self.env]).rstrip("/")
-
-    @property
-    def health_urls(self) -> dict[str, str]:
-        """Per-service health endpoints; empty in remote (ports are not exposed)."""
-        return dict(LOCAL_HEALTH_URLS) if self.env == "local" else {}
 
 
 def load_settings(**overrides: object) -> Settings:

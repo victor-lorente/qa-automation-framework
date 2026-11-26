@@ -37,8 +37,8 @@ Spring Boot services and a Next.js front end, built for practising testing.
 
 - RBP is **not part of this repository**. [docker/docker-compose.sut.yml](docker/docker-compose.sut.yml)
   only references the images that RBP's own CI publishes to Docker Hub; the tests talk to it over HTTP.
-- Pinned version: images published on 2026-10-23 from RBP commit
-  [`efe2deb`](https://github.com/mwinteringham/restful-booker-platform/commit/efe2deb8ce02db541adbf9d3a6604caf5fbdaae6),
+- Pinned version: images published on 2026-11-26 from RBP commit
+  [`2069ba1c`](https://github.com/mwinteringham/restful-booker-platform/commit/2069ba1c622c7327395d329eccdbe4e8ea90349f),
   referenced by digest (see the compose file).
 - Public deployment (shared, used read-only): https://automationintesting.online
 
@@ -112,7 +112,7 @@ Every Gherkin tag is a pytest marker, and `--strict-markers` rejects unknown tag
 | `api`, `ui`, `hybrid` | Layer under test |
 | `infrastructure`, `login`, `validation` | Suite |
 | `mutating` | Writes data; skipped when `ENV=remote` |
-| `local_only` | Needs the local Docker instance (e.g. per-service health ports); skipped when `ENV=remote` |
+| `local_only` | Needs the local Docker instance; skipped when `ENV=remote` |
 | `smoke`, `accessibility` | Optional subsets |
 
 ## Project structure
@@ -150,7 +150,7 @@ It needs several GB of free disk and takes several minutes:
 ```bash
 git clone https://github.com/mwinteringham/restful-booker-platform.git .sut/restful-booker-platform
 cd .sut/restful-booker-platform
-git checkout efe2deb8ce02db541adbf9d3a6604caf5fbdaae6
+git checkout 2069ba1c622c7327395d329eccdbe4e8ea90349f
 docker run --rm -v "$PWD":/app -v "$HOME/.m2":/root/.m2 -w /app \
   maven:3.9-eclipse-temurin-26-alpine \
   mvn -q clean package -DskipTests -pl auth,booking,room,branding,report,message -am

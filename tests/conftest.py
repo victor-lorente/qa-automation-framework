@@ -1,17 +1,20 @@
-"""Fixtures shared by the step definitions: API contexts and admin authentication.
+"""Fixtures shared by the step definitions: API contexts, admin session and page objects.
 
 They live here (test layer) and not in the root conftest.py because they depend on the
-API clients; the root conftest.py only handles configuration and safety guards.
+API clients and page objects; the root conftest.py only handles configuration and safety guards.
 """
 
 from collections.abc import Iterator
 
 import pytest
-from playwright.sync_api import APIRequestContext, Playwright, StorageState
+from playwright.sync_api import APIRequestContext, BrowserContext, Page, Playwright, StorageState
 
 from core.api_clients.auth_client import AuthClient
 from core.api_clients.room_client import RoomClient
 from core.config import Settings
+from core.page_objects.admin.login_page import AdminLoginPage
+from core.page_objects.admin.rooms_page import AdminRoomsPage
+from core.page_objects.components.admin_nav import AdminNav
 from core.utils.http_checks import require_status
 
 
@@ -78,3 +81,29 @@ def room_cleanup(admin_api: APIRequestContext) -> Iterator[list[str]]:
             require_status(
                 rooms.delete_room(room["roomid"]), 202, action=f"Room cleanup: delete {room['roomName']}"
             )
+
+
+# --- UI ------------------------------------------------------------------------------
+# Page objects wrap pytest-playwright's `page` (function scope), so every test gets a
+# fresh browser context and keeps --tracing / --screenshot support.
+
+
+@pytest.fixture
+def admin_login_page(page: Page) -> AdminLoginPage:
+    return AdminLoginPage(page)
+
+
+@pytest.fixture
+def admin_rooms_page(page: Page) -> AdminRoomsPage:
+    return AdminRoomsPage(page)
+
+
+@pytest.fixture
+def admin_nav(page: Page) -> AdminNav:
+    return AdminNav.on(page)
+
+
+@pytest.fixture
+def admin_signed_in(context: BrowserContext, admin_storage_state: StorageState) -> None:
+    """Reuse the API admin session in the browser: no login form unless login is under test."""
+    context.add_cookies(admin_storage_state["cookies"])

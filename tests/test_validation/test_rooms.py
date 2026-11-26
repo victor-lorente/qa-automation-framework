@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from typing import Any
 
-from playwright.sync_api import APIRequestContext, APIResponse, Playwright
+from playwright.sync_api import APIRequestContext, APIResponse, Playwright, expect
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from core.api_clients.room_client import RoomClient
 from core.config import Settings
+from core.page_objects.admin.rooms_page import AdminRoomsPage
 from core.utils.http_checks import expect_status, require_status
 from core.utils.test_data import room_payload
 
@@ -174,3 +175,24 @@ def room_gone(response: APIResponse, anon_api: APIRequestContext, existing_room:
 @then("the room is reported as not found")
 def room_not_found(response: APIResponse) -> None:
     expect_status(response, 404)
+
+
+# --- UI (hybrid: data prepared through the API, checked in the browser) ------------
+
+
+@given("the admin is signed in to the admin area")
+def admin_signed_in_to_admin_area(admin_signed_in: None) -> None:
+    """The browser reuses the API admin session (cookie), so no login form is involved."""
+
+
+@when("the admin opens the room list")
+def admin_opens_room_list(admin_rooms_page: AdminRoomsPage) -> None:
+    admin_rooms_page.open()
+
+
+@then("the room is listed with its type and price")
+def room_listed(admin_rooms_page: AdminRoomsPage, existing_room: dict[str, Any]) -> None:
+    row = admin_rooms_page.room_row(existing_room["roomName"])
+    expect(row).to_be_visible()
+    expect(row).to_contain_text(existing_room["type"])
+    expect(row).to_contain_text(str(existing_room["roomPrice"]))

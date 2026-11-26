@@ -114,6 +114,7 @@ Every Gherkin tag is a pytest marker, and `--strict-markers` rejects unknown tag
 | `mutating` | Writes data; skipped when `ENV=remote` |
 | `local_only` | Needs the local Docker instance; skipped when `ENV=remote` |
 | `smoke`, `accessibility` | Optional subsets |
+| `bug_<name>` | Known bug in the system under test: the scenario documents the expected behaviour and is reported as an expected failure (strict `xfail`, reason in `pytest.ini`). If the bug gets fixed, the run fails until the tag is removed |
 
 ## Project structure
 
